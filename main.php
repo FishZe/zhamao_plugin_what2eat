@@ -62,8 +62,8 @@ $plugin->addBotCommand(BotCommand::make('what2eat', regex: "(今天|早上|中�
     }
 }));
 
-$plugin->addBotCommand(BotCommand::make('what2drink', regex: "(今天|早上|中午|晚上|宵夜|今早|今晚)喝(什么|啥)")->on(function (OneBotEvent $event, BotContext $ctx) {
-    $a = checkMsg($event->getMessageString(), "/(今天|早上|中午|下午茶|晚上|宵夜|今早|今晚)喝(什么|啥)/u");
+$plugin->addBotCommand(BotCommand::make('what2drink', regex: "(今天|早上|中午|下午茶|晚上|宵夜|今早|今晚|早餐|午餐|晚餐)喝(什么|啥)")->on(function (OneBotEvent $event, BotContext $ctx) {
+    $a = checkMsg($event->getMessageString(), "/(今天|早上|中午|下午茶|晚上|宵夜|今早|今晚|早餐|午餐|晚餐)喝(什么|啥)/u");
     if (!$a[0]) {
         $ctx->reply($a[1] == "" ? "" : "现在不是$a[1]的时间哦");
     } else {
