@@ -40,7 +40,7 @@ function checkSum(int $qq, bool $eatType, int $now): array
             $u = ["have" => array(), "time" => date("Y-m-d")];
             for ($i = 0; $i < 6; $i++) $u["have"][$i] = [(int)($now == $i && !$eatType), (int)($now == $i && $eatType)];
         } else {
-            if ($u["have"][$now][$eatType]++ > 3) return [false, $u["have"][$now][$eatType] > 5, kv("WHAT_TO_EAT")->set("USER_$qq", $u)];
+            if (++ $u["have"][$now][$eatType] > 3) return [false, $u["have"][$now][$eatType] > 5, kv("WHAT_TO_EAT")->set("USER_$qq", $u)];
         }
         return [true, kv("WHAT_TO_EAT")->set("USER_$qq", $u)];
     } catch (\Psr\SimpleCache\InvalidArgumentException) {
@@ -67,7 +67,7 @@ $plugin->addBotCommand(BotCommand::make('what2drink', regex: "(今天|早上|中
     if (!$a[0]) {
         $ctx->reply($a[1] == "" ? "" : "现在不是$a[1]的时间哦");
     } else {
-        $c = checkSum($event->getUserId(), 0, $a[2]);
+        $c = checkSum($event->getUserId(), 1, $a[2]);
         if (!$c[0]) {
             if (!$c[1]) $ctx->reply(getArrayRand(["今天$a[1]喝得太多了, 歇会再喝饮料吧", "$a[1]喝那么多, 你不怕被撑坏吗?", "$a[1]喝的太多了, 不能再喝了!", "你是猪猪吗? 喝那么多$a[1]"]));
         } else {
