@@ -1,6 +1,8 @@
 ## 今天吃什么 What2Eat
 
-适配 炸毛框架 3.0.0 +
+zhamao-frameword >= 3.0.0
+
+PHP >= 8.0
 
 ## 安装
 
