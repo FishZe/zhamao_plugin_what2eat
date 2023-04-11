@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace fishze;
 
 use Psr\SimpleCache\InvalidArgumentException;
+use ZM\Exception\OneBot12Exception;
 
 class What2eat
 {
@@ -43,6 +44,9 @@ class What2eat
     #[\CommandArgument('what')]
     public function GetWhat2Eat(\BotContext $ctx, \OneBotEvent $event,): void
     {
+        if(count($ctx->getParam('.unnamed')) != 0) {
+            return;
+        }
         $t = $this->GetNowTimeItem($ctx->getParam("time"));
         if (!((date("H") >= $t[0] && date("H") < $t[1]))) {
             $ctx->reply($this->GetArrayRand(["现在不是{$t[2]}的时间哦", "现在还不能吃{$t[2]}哦", "你就那么馋吗？现在还不能吃{$t[2]}哦"]));
@@ -68,7 +72,11 @@ class What2eat
                     }
                     $u["have"][$t[3]][0]++;
                 }
-                $ctx->reply("建议$t[2]吃 " . $this->GetArrayRand(kv("WHAT_TO_EAT")->get("WHAT_TO_EAT_EATING")["basic_food"]));
+                $m = kv("WHAT_TO_EAT")->get("WHAT_TO_EAT_EATING")["basic_food"];
+                if(kv("WHAT_TO_EAT")->get("GROUP_{$event->getGroupId()}") != NULL) {
+                    $m = array_merge($m, kv("WHAT_TO_EAT")->get("GROUP_{$event->getGroupId()}"));
+                }
+                $ctx->reply("建议$t[2]吃 " . $this->GetArrayRand($m));
                 kv("WHAT_TO_EAT")->set("USER_{$event->getUserId()}", $u);
             } catch (\Psr\SimpleCache\InvalidArgumentException $e) {
                 $ctx->reply("WHAT_TO_EAT插件遇到错误, 请查看错误日志");
@@ -82,6 +90,9 @@ class What2eat
     #[\CommandArgument('what')]
     public function GetWhat2Drink(\BotContext $ctx, \OneBotEvent $event,): void
     {
+        if(count($ctx->getParam('.unnamed')) != 0) {
+            return;
+        }
         $t = $this->GetNowTimeItem($ctx->getParam("time"));
         if (!((date("H") >= $t[0] && date("H") < $t[1]))) {
             $ctx->reply($this->GetArrayRand(["现在不是{$t[2]}的时间哦", "现在还不能吃{$t[2]}哦", "你就那么馋吗？现在还不能吃{$t[2]}哦"]));
@@ -118,10 +129,77 @@ class What2eat
         }
     }
 
+    private function getPermission(\OneBotEvent $event) : bool
+    {
+        $all = config("what-to-eat.admin_qq_id");
+        if($all == NULL || !in_array($event->getUserId(), $all)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @throws OneBot12Exception
+     * @throws InvalidArgumentException
+     */
+    #[\BotCommand(match: "/群菜单删除")]
+    #[\CommandArgument('param1')]
+    public function DelMenu(\BotContext $ctx, \OneBotEvent $event):void
+    {
+        if($event->getGroupId() != 0 && $this->getPermission($event)) {
+            if($ctx->getParam("param1") == NULL || $ctx->getParam("param1") == "") {
+                $ctx->reply("请在命令后面加上菜单名称");
+                return;
+            }
+            $nowGroupMenu = kv("WHAT_TO_EAT")->get("GROUP_{$event->getGroupId()}");
+            if($nowGroupMenu == NULL) {
+                $ctx->reply("该群还没有菜单");
+                return;
+            }
+            if(!in_array($ctx->getParam("param1"), $nowGroupMenu)) {
+                $ctx->reply("该菜单不存在");
+                return;
+            }
+            $nowGroupMenu = array_diff($nowGroupMenu, [$ctx->getParam("param1")]);
+            kv("WHAT_TO_EAT")->set("GROUP_{$event->getGroupId()}", $nowGroupMenu);
+            $ctx->reply("已删除菜单");
+        }
+    }
+
+    /**
+     * @throws OneBot12Exception
+     * @throws InvalidArgumentException
+     */
+    #[\BotCommand(match: "/群菜单添加")]
+    #[\CommandArgument('param1')]
+    public function AddMenu(\BotContext $ctx, \OneBotEvent $event) : void
+    {
+        if($event->getGroupId() != 0 && $this->getPermission($event)) {
+            if($ctx->getParam("param1") == NULL || $ctx->getParam("param1") == "") {
+                $ctx->reply("请在命令后面加上菜单名称");
+                return;
+            }
+            $nowGroupMenu = kv("WHAT_TO_EAT")->get("GROUP_{$event->getGroupId()}");
+            if($nowGroupMenu == NULL) {
+                $nowGroupMenu = array();
+            }
+            if(in_array($ctx->getParam("param1"), $nowGroupMenu)) {
+                $ctx->reply("该菜单已经存在");
+                return;
+            }
+            $nowGroupMenu[] = $ctx->getParam("param1");
+            kv("WHAT_TO_EAT")->set("GROUP_{$event->getGroupId()}", $nowGroupMenu);
+            $ctx->reply("添加成功");
+        }
+    }
 
     #[\init()]
     public function InitWhat2Eat(): void
     {
+        if (config('what-to-eat') === null) {
+            logger()->notice('吃什么插件还没有配置文件，正在为你生成，请到 config/what-to-eat.json 填入你的配置项');
+            file_put_contents(WORKING_DIR . '/config/what-to-eat.json', json_encode(['admin_qq_id' => array()], JSON_PRETTY_PRINT));
+        }
         try {
             kv("WHAT_TO_EAT")->set('WHAT_TO_EAT_DRINKS', json_decode(file_get_contents(dirname(__FILE__) . "/json/drinks.json"), true));
             kv("WHAT_TO_EAT")->set('WHAT_TO_EAT_EATING', json_decode(file_get_contents(dirname(__FILE__) . "/json/eating.json"), true));
